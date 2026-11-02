@@ -19,39 +19,52 @@ nix run github:krisajenkins/spacetimedb-flake/v2.14.0 -- --version
 
 ## Use it in a project
 
+Add the flake as an input and put its package in your devShell:
+
 ```nix
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/26.05";
-    spacetimedb = {
-      url = "github:krisajenkins/spacetimedb-flake";            # latest
-      # url = "github:krisajenkins/spacetimedb-flake/v2.14.0";  # pinned
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    spacetimedb.url = "github:krisajenkins/spacetimedb-flake";
+    # spacetimedb.url = "github:krisajenkins/spacetimedb-flake/v2.14.0";  # pinned
   };
 
   outputs = { nixpkgs, spacetimedb, ... }:
     let
       system = "aarch64-darwin";
-      pkgs = import nixpkgs {
-        inherit system;
-        overlays = [ spacetimedb.overlays.default ];
-        config.allowUnfree = true; # SpacetimeDB is BSL-1.1
-      };
+      pkgs = nixpkgs.legacyPackages.${system};
     in {
       devShells.${system}.default = pkgs.mkShell {
-        packages = [ pkgs.spacetimedb ];
+        packages = [ spacetimedb.packages.${system}.default ];
       };
     };
 }
 ```
 
-The overlay replaces nixpkgs' own `spacetimedb`, which builds from source and
-usually lags behind releases.
+Then `nix develop` (or `direnv reload`) and `spacetime` is on your `PATH`.
 
-If you'd rather skip the overlay, use the package directly:
-`spacetimedb.packages.${system}.default`. It's built against this flake's
-nixpkgs (or yours, with `follows`) and doesn't need `allowUnfree`.
+You don't need an overlay, and you don't need `allowUnfree`. This flake
+builds the package and accepts SpacetimeDB's licence for that one package
+itself (see [Licence](#licence)).
+
+Optionally, add `spacetimedb.inputs.nixpkgs.follows = "nixpkgs";` to skip
+fetching a second copy of nixpkgs. Upstream ships prebuilt binaries, so which
+nixpkgs they're linked against makes no practical difference.
+
+### As an overlay
+
+If you'd rather have it as `pkgs.spacetimedb`, replacing nixpkgs' own
+from-source package (which usually lags behind releases), use the overlay.
+Because the package is then built by *your* nixpkgs, you have to accept the
+licence yourself:
+
+```nix
+pkgs = import nixpkgs {
+  inherit system;
+  overlays = [ spacetimedb.overlays.default ];
+  config.allowUnfreePredicate = pkg: nixpkgs.lib.getName pkg == "spacetime";
+};
+```
 
 ### Upgrading
 
@@ -67,8 +80,9 @@ command.
 ## Licence
 
 SpacetimeDB is under the Business Source License 1.1, which nixpkgs counts as
-unfree, so consumers of the overlay need `allowUnfree` (or an
-`allowUnfreePredicate` that admits `spacetime`).
+unfree. This flake's `packages` allow it for you. If you use the overlay
+instead, your own nixpkgs config has to allow it, either with `allowUnfree` or
+with an `allowUnfreePredicate` that admits `spacetime`.
 
 The packaging in this repo is MIT-licensed.
 
