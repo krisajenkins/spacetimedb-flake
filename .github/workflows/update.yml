@@ -1,0 +1,62 @@
+name: Update
+
+# Polls for a new SpacetimeDB release. When one appears, re-hashes the tarballs,
+# checks the result runs, then commits to main and tags it vX.Y.Z to match
+# upstream.
+#
+# Pushes made with GITHUB_TOKEN don't trigger other workflows, so check.yml
+# won't run on the bot's commit. update.sh has already downloaded every
+# platform's tarball to hash it, and the flake check below runs the x86_64-linux
+# binary.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to update to (default: latest release)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+
+      - name: Update sources.json
+        id: update
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          nix develop -c ./update.sh $VERSION
+          if git diff --quiet; then
+            echo "changed=false" >>"$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >>"$GITHUB_OUTPUT"
+            echo "version=$(jq -r .version sources.json)" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Check
+        if: steps.update.outputs.changed == 'true'
+        run: nix flake check -L
+
+      - name: Commit and tag
+        if: steps.update.outputs.changed == 'true'
+        env:
+          V: ${{ steps.update.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Update SpacetimeDB to v$V"
+          git tag "v$V"
+          git push origin HEAD:main "v$V"
