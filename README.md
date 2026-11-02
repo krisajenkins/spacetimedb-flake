@@ -1,4 +1,4 @@
-# spacetimedb-nix
+# spacetimedb-flake
 
 A Nix flake for the [SpacetimeDB](https://spacetimedb.com) CLI (`spacetime`)
 and standalone server (`spacetimedb-standalone`).
@@ -13,8 +13,8 @@ Supported systems: `aarch64-darwin`, `x86_64-darwin`, `aarch64-linux`,
 ## Try it
 
 ```sh
-nix run github:krisajenkins/spacetimedb-nix -- --version
-nix run github:krisajenkins/spacetimedb-nix/v2.14.0 -- --version
+nix run github:krisajenkins/spacetimedb-flake -- --version
+nix run github:krisajenkins/spacetimedb-flake/v2.14.0 -- --version
 ```
 
 ## Use it in a project
@@ -24,8 +24,8 @@ nix run github:krisajenkins/spacetimedb-nix/v2.14.0 -- --version
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/26.05";
     spacetimedb = {
-      url = "github:krisajenkins/spacetimedb-nix";            # latest
-      # url = "github:krisajenkins/spacetimedb-nix/v2.14.0";  # pinned
+      url = "github:krisajenkins/spacetimedb-flake";            # latest
+      # url = "github:krisajenkins/spacetimedb-flake/v2.14.0";  # pinned
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
